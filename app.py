@@ -1,3 +1,8 @@
+st.set_page_config(
+    page_title="Caderno de Pista - Agrupamento 78",
+    page_icon="⚜️",  # Ou podes usar o caminho da imagem "logo_78.jpg"
+    layout="wide"
+)
 import streamlit as st
 import pandas as pd
 import json
