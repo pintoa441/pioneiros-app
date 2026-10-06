@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+from datetime import date
 
 # 1. Configuração da página
 st.set_page_config(
@@ -10,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Exibição do Logótipo no topo e na barra lateral
+# 2. Exibição do Logótipo
 if os.path.exists("logo_78.jpg"):
     st.sidebar.image("logo_78.jpg", use_container_width=True)
 
@@ -24,8 +25,9 @@ with col_titulo:
 
 st.markdown("---")
 
-# 3. Configurações de acesso e base de dados
+# 3. Passwords e Base de Dados
 PASSWORD_DIRIGENTE = "escuteiros78"
+PASSWORD_GUIAS = "guias78"
 DB_FILE = "dados_pioneiros.json"
 
 def load_data():
@@ -41,7 +43,7 @@ def save_data(data):
     with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# 4. Estrutura Completa de Trilhos e Objetivos Educativos
+# 4. Estrutura de Trilhos
 TRILHOS_DATA = [
     {
         "area": "Desenvolvimento Físico",
@@ -49,7 +51,7 @@ TRILHOS_DATA = [
             {
                 "id": "desempenho",
                 "nome": "Desempenho",
-                "descricao": "Ter preocupação com o desempenho físico e praticar atividades que contribuem para um desenvolvimento equilibrado.",
+                "descricao": "Ter preocupação com o desempenho físico e praticar atividades equilibradas.",
                 "objetivos": ["F1 - Tenho preocupação com o meu desempenho físico."],
                 "oportunidades": [
                     "Programar e executar um raid para a Equipa/Comunidade.",
@@ -181,7 +183,11 @@ TRILHOS_DATA = [
 ]
 # 5. Navegação principal
 st.sidebar.title("⚜️ Navegação")
-modo = st.sidebar.radio("Selecione a Área:", ["Área do Pioneiro", "Área da Chefia / Dirigente"])
+modo = st.sidebar.radio("Selecione a Área:", [
+    "Área do Pioneiro", 
+    "Área do Conselho de Guias", 
+    "Área da Chefia / Dirigente"
+])
 
 registos = load_data()
 
@@ -216,41 +222,93 @@ if modo == "Área do Pioneiro":
             for obj in trilho["objetivos"]:
                 st.info(obj)
                 
-            st.markdown("##### 🚩 Oportunidades Educativas")
-            concluidas = 0
-            total = len(trilho["oportunidades"])
+            st.markdown("##### 🚩 Submeter Oportunidades Concluídas")
             
-            op_selecionadas = []
+            novos_submetidos = []
             for i, op in enumerate(trilho["oportunidades"]):
-                key = f"{trilho['id']}_op_{i}"
-                if st.checkbox(op, key=key):
-                    concluidas += 1
-                    op_selecionadas.append(op)
-                    
-            progresso = concluidas / total if total > 0 else 0
-            st.progress(progresso)
-            st.caption(f"Concluídas: {concluidas}/{total} ({int(progresso * 100)}%)")
-            
-            if st.button(f"💾 Guardar Progresso - {trilho['nome']}", key=f"btn_{trilho['id']}"):
-                novos_registos = [r for r in registos if not (r['nome'] == nome_pioneiro and r['trilho'] == trilho['nome'])]
-                for op in op_selecionadas:
+                # Verificar se já foi aprovado pelo Conselho de Guias
+                ja_aprovado = any(
+                    r['nome'] == nome_pioneiro and 
+                    r['trilho'] == trilho['nome'] and 
+                    r['oportunidade'] == op and 
+                    r.get('validado_cg', False)
+                    for r in registos
+                )
+                
+                col_check, col_data = st.columns([3, 1])
+                with col_check:
+                    if ja_aprovado:
+                        st.success(f"✅ **{op}** (Validado pelo Conselho de Guias)")
+                    else:
+                        fazer_pedido = st.checkbox(op, key=f"{trilho['id']}_op_{i}")
+                with col_data:
+                    if not ja_aprovado and fazer_pedido:
+                        dt_pioneiro = st.date_input("Data de Conclusão:", value=date.today(), key=f"dt_p_{trilho['id']}_{i}")
+                        novos_submetidos.append({"op": op, "data_pioneiro": str(dt_pioneiro)})
+
+            if st.button(f"📩 Submeter para o Conselho de Guias - {trilho['nome']}", key=f"btn_{trilho['id']}"):
+                # Mantém os registos de outros pioneiros ou de outros trilhos
+                novos_registos = [r for r in registos if not (r['nome'] == nome_pioneiro and r['trilho'] == trilho['nome'] and not r.get('validado_cg', False))]
+                
+                for item in novos_submetidos:
                     novos_registos.append({
                         "equipa": equipa,
                         "nome": nome_pioneiro,
                         "etapa": etapa_atual,
                         "area": area_atual["area"],
                         "trilho": trilho["nome"],
-                        "oportunidade": op
+                        "oportunidade": item["op"],
+                        "data_pioneiro": item["data_pioneiro"],
+                        "validado_cg": False,
+                        "data_cg": "-"
                     })
                 save_data(novos_registos)
-                st.success("Progresso atualizado com sucesso!")
+                st.success("Enviado para validação do Conselho de Guias!")
 
 # ---------------------------------------------------------
-# MODO 2: ÁREA DA CHEFIA / DIRIGENTE
+# MODO 2: ÁREA DO CONSELHO DE GUIAS
+# ---------------------------------------------------------
+elif modo == "Área do Conselho de Guias":
+    st.subheader("⚜️ Área do Conselho de Guias")
+    st.write("Validação de progresso das Equipas da Comunidade 78.")
+    
+    pwd_guias = st.text_input("Palavra-passe do Conselho de Guias:", type="password")
+    
+    if pwd_guias == PASSWORD_GUIAS:
+        st.success("Acesso autorizado ao Conselho de Guias!")
+        
+        pendentes = [r for r in registos if not r.get("validado_cg", False)]
+        
+        if pendentes:
+            st.markdown("### 📋 Pedidos de Validação Pendentes")
+            
+            for idx, r in enumerate(pendentes):
+                with st.expander(f"📌 {r['nome']} ({r['equipa']}) - {r['trilho']} | {r['oportunidade']}"):
+                    st.write(f"**Área:** {r['area']}")
+                    st.write(f"**Etapa:** {r['etapa']}")
+                    st.write(f"**Data em que o Pioneiro concluiu:** {r.get('data_pioneiro', 'N/A')}")
+                    
+                    data_val_cg = st.date_input("Data de Validação pelo CG:", value=date.today(), key=f"val_dt_{idx}")
+                    
+                    if st.button("✅ Validar e Aprovar Trilho", key=f"btn_val_{idx}"):
+                        for reg in registos:
+                            if reg == r:
+                                reg['validado_cg'] = True
+                                reg['data_cg'] = str(data_val_cg)
+                        save_data(registos)
+                        st.success(f"Validação gravada com sucesso para {r['nome']}!")
+                        st.rerun()
+        else:
+            st.info("Não existem pedidos de validação pendentes de momento.")
+            
+    elif pwd_guias:
+        st.error("Palavra-passe do Conselho de Guias incorreta.")
+
+# ---------------------------------------------------------
+# MODO 3: ÁREA DA CHEFIA / DIRIGENTE
 # ---------------------------------------------------------
 else:
-    st.subheader("🛡️ Área do Dirigente / Chefia")
-    st.write("Acesso reservado à Equipa de Animação da Comunidade 78.")
+    st.subheader("🛡️️ Área do Dirigente / Chefia")
     
     with st.form(key="login_form"):
         pwd_input = st.text_input("Palavra-passe de Acesso:", type="password")
@@ -259,33 +317,17 @@ else:
     if submit_button:
         if pwd_input == PASSWORD_DIRIGENTE:
             st.session_state["autenticado"] = True
-            st.success("Acesso autorizado com sucesso!")
+            st.success("Acesso autorizado!")
         else:
             st.session_state["autenticado"] = False
-            st.error("Palavra-passe incorreta. Tenta novamente.")
+            st.error("Palavra-passe incorreta.")
 
     if st.session_state.get("autenticado", False):
         df = pd.DataFrame(registos)
         
         if not df.empty:
-            st.markdown("### 📊 Visão Geral do Progresso da Comunidade")
-            
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Total de Validações", len(df))
-            col2.metric("Pioneiros Ativos", df['nome'].nunique())
-            col3.metric("Equipas", df['equipa'].nunique())
-            
-            st.markdown("---")
-            
-            st.subheader("🔍 Filtrar Registos")
-            pioneiro_filtro = st.selectbox("Filtrar por Pioneiro:", ["Todos"] + list(df['nome'].unique()))
-            
-            if pioneiro_filtro != "Todos":
-                df_exibir = df[df['nome'] == pioneiro_filtro]
-            else:
-                df_exibir = df
-                
-            st.dataframe(df_exibir, use_container_width=True)
+            st.markdown("### 📊 Registos Globais da Comunidade")
+            st.dataframe(df, use_container_width=True)
             
             csv = df.to_csv(index=False).encode('utf-8')
             st.download_button(
@@ -295,4 +337,4 @@ else:
                 mime="text/csv"
             )
         else:
-            st.info("Ainda não existem registos de progresso submetidos pelos Pioneiros.")
+            st.info("Ainda não existem registos no sistema.")
