@@ -9,9 +9,12 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Inicialização da Base de Dados Local (SQLite)
+# 2. Inicialização e Gestão da Base de Dados (SQLite)
+def get_connection():
+    return sqlite3.connect("progresso_pioneiros.db")
+
 def init_db():
-    conn = sqlite3.connect("progresso_pioneiros.db")
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS propostas (
@@ -29,6 +32,7 @@ def init_db():
     conn.commit()
     conn.close()
 
+# Executa a criação da tabela logo no arranque
 init_db()
 
 # 3. Base de Dados dos Trilhos de Progresso
@@ -219,7 +223,7 @@ TRILHOS_DATA = [
 ]
 
 # 4. Interface Principal
-st.title("⚜️️ Pista de Progresso - III Secção")
+st.title("⚜️ Pista de Progresso - III Secção")
 
 # Sidebar
 st.sidebar.header("👤 Dados do Pioneiro")
@@ -265,7 +269,7 @@ for idx, tab in enumerate(tabs):
         st.caption(f"Progresso: {concluidas}/{total} concluídas ({int(progresso * 100)}%)")
         
         if st.button(f"💾 Guardar Progresso - {trilho['nome']}", key=f"btn_{trilho['id']}"):
-            conn = sqlite3.connect("progresso_pioneiros.db")
+            conn = get_connection()
             cursor = conn.cursor()
             obj_cod = trilho["objetivos"][0].split(" - ")[0] if trilho["objetivos"] else ""
             for op in op_selecionadas:
@@ -277,14 +281,17 @@ for idx, tab in enumerate(tabs):
             conn.close()
             st.success("Guardado com sucesso!")
 
-# 5. Consulta da Base de Dados
+# 5. Consulta Segura da Base de Dados
 st.markdown("---")
 with st.expander("📊 Ver Base de Dados (SQLite)"):
-    conn = sqlite3.connect("progresso_pioneiros.db")
-    df = pd.read_sql_query("SELECT * FROM propostas ORDER BY data_registo DESC", conn)
-    conn.close()
-    
-    if not df.empty:
-        st.dataframe(df, use_container_width=True)
-    else:
+    try:
+        conn = get_connection()
+        df = pd.read_sql_query("SELECT * FROM propostas ORDER BY data_registo DESC", conn)
+        conn.close()
+        
+        if not df.empty:
+            st.dataframe(df, use_container_width=True)
+        else:
+            st.info("Nenhum registo guardado ainda.")
+    except Exception:
         st.info("Nenhum registo guardado ainda.")
