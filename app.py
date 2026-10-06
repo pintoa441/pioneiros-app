@@ -2,28 +2,15 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import date
-from streamlit_gsheets import GSheetsConnection
 
-# 1. Configuração da página
-st.set_page_config(
-    page_title="Pista de Progresso - Agrupamento 78",
-    page_icon="⚜️",
-    layout="wide"
-)
-import streamlit as st
-import pandas as pd
-import json
-import os
-from datetime import date
-
-# 1. Configuração da página
+# 1. Configuração da página (DEVE SER O PRIMEIRO COMANDO STREAMLIT)
 st.set_page_config(
     page_title="Pista de Progresso - Agrupamento 78",
     page_icon="⚜️",
     layout="wide"
 )
 
-# 2. Exibição do Logótipo
+# 2. Exibição do Logótipo e Título
 if os.path.exists("logo_78.jpg"):
     st.sidebar.image("logo_78.jpg", use_container_width=True)
 
@@ -37,25 +24,11 @@ with col_titulo:
 
 st.markdown("---")
 
-# 3. Passwords e Base de Dados
+# 3. Passwords de Acesso
 PASSWORD_DIRIGENTE = "escuteiros78"
 PASSWORD_GUIAS = "guias78"
-DB_FILE = "dados_pioneiros.json"
 
-def load_data():
-    if os.path.exists(DB_FILE):
-        try:
-            with open(DB_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return []
-    return []
-
-def save_data(data):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-
-# 4. Estrutura de Trilhos
+# 4. Estrutura dos Trilhos e Objetivos
 TRILHOS_DATA = [
     {
         "area": "Desenvolvimento Físico",
@@ -193,15 +166,14 @@ TRILHOS_DATA = [
         ]
     }
 ]
-# 5. Navegação principal
+
+# 5. Navegação Principal
 st.sidebar.title("⚜️ Navegação")
 modo = st.sidebar.radio("Selecione a Área:", [
     "Área do Pioneiro", 
     "Área do Conselho de Guias", 
     "Área da Chefia / Dirigente"
 ])
-
-registos = load_data()
 
 # ---------------------------------------------------------
 # MODO 1: ÁREA DO PIONEIRO
@@ -234,85 +206,22 @@ if modo == "Área do Pioneiro":
             for obj in trilho["objetivos"]:
                 st.info(obj)
                 
-            st.markdown("##### 🚩 Submeter Oportunidades Concluídas")
-            
-            novos_submetidos = []
-            for i, op in enumerate(trilho["oportunidades"]):
-                # Verificar se já foi aprovado pelo Conselho de Guias
-                ja_aprovado = any(
-                    r['nome'] == nome_pioneiro and 
-                    r['trilho'] == trilho['nome'] and 
-                    r['oportunidade'] == op and 
-                    r.get('validado_cg', False)
-                    for r in registos
-                )
-                
-                col_check, col_data = st.columns([3, 1])
-                with col_check:
-                    if ja_aprovado:
-                        st.success(f"✅ **{op}** (Validado pelo Conselho de Guias)")
-                    else:
-                        fazer_pedido = st.checkbox(op, key=f"{trilho['id']}_op_{i}")
-                with col_data:
-                    if not ja_aprovado and fazer_pedido:
-                        dt_pioneiro = st.date_input("Data de Conclusão:", value=date.today(), key=f"dt_p_{trilho['id']}_{i}")
-                        novos_submetidos.append({"op": op, "data_pioneiro": str(dt_pioneiro)})
-
-            if st.button(f"📩 Submeter para o Conselho de Guias - {trilho['nome']}", key=f"btn_{trilho['id']}"):
-                # Mantém os registos de outros pioneiros ou de outros trilhos
-                novos_registos = [r for r in registos if not (r['nome'] == nome_pioneiro and r['trilho'] == trilho['nome'] and not r.get('validado_cg', False))]
-                
-                for item in novos_submetidos:
-                    novos_registos.append({
-                        "equipa": equipa,
-                        "nome": nome_pioneiro,
-                        "etapa": etapa_atual,
-                        "area": area_atual["area"],
-                        "trilho": trilho["nome"],
-                        "oportunidade": item["op"],
-                        "data_pioneiro": item["data_pioneiro"],
-                        "validado_cg": False,
-                        "data_cg": "-"
-                    })
-                save_data(novos_registos)
-                st.success("Enviado para validação do Conselho de Guias!")
+            st.markdown("##### 🚩 Oportunidades Educativas")
+            for op in trilho["oportunidades"]:
+                st.checkbox(op, key=f"{trilho['id']}_op_{op}")
 
 # ---------------------------------------------------------
 # MODO 2: ÁREA DO CONSELHO DE GUIAS
 # ---------------------------------------------------------
 elif modo == "Área do Conselho de Guias":
     st.subheader("⚜️ Área do Conselho de Guias")
-    st.write("Validação de progresso das Equipas da Comunidade 78.")
+    st.write("Validação e acompanhamento de progresso das Equipas.")
     
     pwd_guias = st.text_input("Palavra-passe do Conselho de Guias:", type="password")
     
     if pwd_guias == PASSWORD_GUIAS:
         st.success("Acesso autorizado ao Conselho de Guias!")
-        
-        pendentes = [r for r in registos if not r.get("validado_cg", False)]
-        
-        if pendentes:
-            st.markdown("### 📋 Pedidos de Validação Pendentes")
-            
-            for idx, r in enumerate(pendentes):
-                with st.expander(f"📌 {r['nome']} ({r['equipa']}) - {r['trilho']} | {r['oportunidade']}"):
-                    st.write(f"**Área:** {r['area']}")
-                    st.write(f"**Etapa:** {r['etapa']}")
-                    st.write(f"**Data em que o Pioneiro concluiu:** {r.get('data_pioneiro', 'N/A')}")
-                    
-                    data_val_cg = st.date_input("Data de Validação pelo CG:", value=date.today(), key=f"val_dt_{idx}")
-                    
-                    if st.button("✅ Validar e Aprovar Trilho", key=f"btn_val_{idx}"):
-                        for reg in registos:
-                            if reg == r:
-                                reg['validado_cg'] = True
-                                reg['data_cg'] = str(data_val_cg)
-                        save_data(registos)
-                        st.success(f"Validação gravada com sucesso para {r['nome']}!")
-                        st.rerun()
-        else:
-            st.info("Não existem pedidos de validação pendentes de momento.")
-            
+        st.info("Aqui serão validadas as propostas submetidas pelas Equipas.")
     elif pwd_guias:
         st.error("Palavra-passe do Conselho de Guias incorreta.")
 
@@ -320,7 +229,7 @@ elif modo == "Área do Conselho de Guias":
 # MODO 3: ÁREA DA CHEFIA / DIRIGENTE
 # ---------------------------------------------------------
 else:
-    st.subheader("🛡️️ Área do Dirigente / Chefia")
+    st.subheader("🛡️ Área do Dirigente / Chefia")
     
     with st.form(key="login_form"):
         pwd_input = st.text_input("Palavra-passe de Acesso:", type="password")
@@ -335,18 +244,5 @@ else:
             st.error("Palavra-passe incorreta.")
 
     if st.session_state.get("autenticado", False):
-        df = pd.DataFrame(registos)
-        
-        if not df.empty:
-            st.markdown("### 📊 Registos Globais da Comunidade")
-            st.dataframe(df, use_container_width=True)
-            
-            csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="📥 Descarregar Relatório Completo (CSV)",
-                data=csv,
-                file_name="progresso_comunidade_pioneiros.csv",
-                mime="text/csv"
-            )
-        else:
-            st.info("Ainda não existem registos no sistema.")
+        st.markdown("### 📊 Visão Geral da Comunidade")
+        st.write("Painel de controlo da Chefia para acompanhamento das Etapas de Progresso.")
