@@ -3,7 +3,7 @@ import pandas as pd
 import json
 import os
 
-# 1. Configuração da página (deve ser a primeira instrução do Streamlit)
+# 1. Configuração da página
 st.set_page_config(
     page_title="Pista de Progresso - Agrupamento 78",
     page_icon="⚜️",
@@ -125,28 +125,3 @@ TRILHOS_DATA = [
                 "id": "responsabilidade",
                 "nome": "Responsabilidade",
                 "descricao": "Demonstrar empenho nas tarefas e cumprir compromissos.",
-                "objetivos": ["C3 - Reconheço a importância das tarefas atribuídas."],
-                "oportunidades": [
-                    "Assumir tarefas de preparação de um Empreendimento.",
-                    "Exercer a função de Guia/Sub-guia com responsabilidade."
-                ]
-            }
-        ]
-    },
-    {
-        "area": "Desenvolvimento Espiritual",
-        "trilhos": [
-            {
-                "id": "descoberta",
-                "nome": "Descoberta",
-                "descricao": "Conhecer a revelação de Deus e viver a fé na comunidade.",
-                "objetivos": ["E1 - Conheço e compreendo a vida dos principais profetas."],
-                "oportunidades": [
-                    "Organizar um raid sob um tema ou imaginário bíblico.",
-                    "Ajudar na dinamização dos tempos litúrgicos de Advento ou Quaresma."
-                ]
-            }
-        ]
-    },
-    {
-        
