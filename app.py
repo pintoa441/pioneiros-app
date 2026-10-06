@@ -10,18 +10,18 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Inicialização do Estado da Sessão
+# 2. Inicialização do Estado da Sessão (Perfis, Utilizadores e Validações)
 if "perfil" not in st.session_state:
     st.session_state["perfil"] = "Inicio"
 
-if "pioneiro_nome" not in st.session_state:
-    st.session_state["pioneiro_nome"] = ""
+if "pioneiro_ativo" not in st.session_state:
+    st.session_state["pioneiro_ativo"] = None  # Guarda o perfil do pioneiro autenticado
 
-if "pioneiro_equipa" not in st.session_state:
-    st.session_state["pioneiro_equipa"] = ""
-
-if "pioneiro_etapa" not in st.session_state:
-    st.session_state["pioneiro_etapa"] = "Adesão"
+# Tabela simulada de Pioneiros registados (Nome, Equipa, Etapa, PIN)
+if "utilizadores_pioneiros" not in st.session_state:
+    st.session_state["utilizadores_pioneiros"] = pd.DataFrame(columns=[
+        "Nome", "Equipa", "Etapa", "PIN"
+    ])
 
 if "area_selecionada" not in st.session_state:
     st.session_state["area_selecionada"] = None
@@ -46,6 +46,7 @@ st.sidebar.title("⚜️ Agrupamento 78")
 if st.session_state["perfil"] != "Inicio":
     if st.sidebar.button("🏠 Voltar ao Ecrã Inicial"):
         st.session_state["perfil"] = "Inicio"
+        st.session_state["pioneiro_ativo"] = None
         st.session_state["area_selecionada"] = None
         st.rerun()
 
@@ -53,7 +54,7 @@ if st.session_state["perfil"] != "Inicio":
 TRILHOS_DATA = [
     {
         "area": "Desenvolvimento Físico",
-        "icone": "🏃‍♂️",
+        "icone": "🏃‍♂️️",
         "descricao": "Desempenho físico, autoconhecimento e bem-estar corporal.",
         "trilhos": [
             {
@@ -78,17 +79,6 @@ TRILHOS_DATA = [
                     "Promover um debate sobre prevenção do bullying.",
                     "Fazer uma análise SWOT pessoal de pontos fortes e limitações."
                 ]
-            },
-            {
-                "id": "bem_estar",
-                "nome": "Bem-Estar Físico",
-                "descricao": "Reger-se por um estilo de vida saudável, cuidando da alimentação e repouso.",
-                "objetivos": ["F4 - Rejo-me por um estilo de vida saudável."],
-                "oportunidades": [
-                    "Planear as refeições de um fim de semana de atividade.",
-                    "Elaborar um manual de boas práticas de alimentação em campo.",
-                    "Promover workshops sobre higiene corporal e saúde oral."
-                ]
             }
         ]
     },
@@ -107,16 +97,6 @@ TRILHOS_DATA = [
                     "Manter um diário de vivências e sentimentos.",
                     "Planear um momento de convívio aberto à família e amigos."
                 ]
-            },
-            {
-                "id": "equilibrio",
-                "nome": "Equilíbrio Emocional",
-                "descricao": "Agir de forma ponderada, sabendo gerir os sentimentos.",
-                "objetivos": ["A4 - Ajo de forma ponderada e respeito o sentimento dos outros."],
-                "oportunidades": [
-                    "Escrever um diário de emoções e refletir sobre como atuou.",
-                    "Organizar um debate na Equipa sobre opiniões divergentes."
-                ]
             }
         ]
     },
@@ -133,16 +113,6 @@ TRILHOS_DATA = [
                 "oportunidades": [
                     "Participar ativamente nas escolhas do Empreendimento.",
                     "Traçar um plano concreto para alcançar um objetivo de progresso."
-                ]
-            },
-            {
-                "id": "responsabilidade",
-                "nome": "Responsabilidade",
-                "descricao": "Demonstrar empenho nas tarefas e cumprir compromissos.",
-                "objetivos": ["C3 - Reconheço a importância das tarefas atribuídas."],
-                "oportunidades": [
-                    "Assumir tarefas de preparação de um Empreendimento.",
-                    "Exercer a função de Guia/Sub-guia com responsabilidade."
                 ]
             }
         ]
@@ -219,13 +189,13 @@ if st.session_state["perfil"] == "Inicio":
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.info("### 🏕️ 1. Pioneiro\n\nIdentifica-te, escolhe a Área de Desenvolvimento e submete propostas de progresso.")
+        st.info("### 🏕️ 1. Pioneiro\n\nAcede ao teu perfil pessoal com palavra-passe e gere os teus Trilhos.")
         if st.button("Entrar como Pioneiro ➔", use_container_width=True):
             st.session_state["perfil"] = "Pioneiro"
             st.rerun()
 
     with col2:
-        st.warning("### ⚜️️ 2. Conselho de Guias\n\nAvalia, comenta e valida as propostas submetidas pelas Equipas.")
+        st.warning("### ⚜️ 2. Conselho de Guias\n\nAvalia, comenta e valida as propostas submetidas pelas Equipas.")
         if st.button("Entrar como Guia ➔", use_container_width=True):
             st.session_state["perfil"] = "Guia"
             st.rerun()
@@ -237,56 +207,93 @@ if st.session_state["perfil"] == "Inicio":
             st.rerun()
 
 # =========================================================
-# 🏕️ ÁREA DO PIONEIRO
+# 🏕️ ÁREA DO PIONEIRO (Com Autenticação Individual)
 # =========================================================
 elif st.session_state["perfil"] == "Pioneiro":
-    st.title("🏕️ Área do Pioneiro")
+    st.title("🏕️ Área Privada do Pioneiro")
 
-    # PASSAGEM 1: Identificação do Pioneiro
-    if not st.session_state["pioneiro_nome"] or not st.session_state["pioneiro_equipa"]:
-        st.markdown("### 👤 Identificação do Escuteiro")
-        st.write("Por favor, preenche os teus dados para aceder aos teus Trilhos:")
+    df_pioneiros = st.session_state["utilizadores_pioneiros"]
 
-        with st.form(key="form_identificacao_pioneiro"):
-            nome_input = st.text_input("Nome Completo:", value=st.session_state["pioneiro_nome"])
-            equipa_input = st.text_input("Equipa (ex: Equipa Condor):", value=st.session_state["pioneiro_equipa"])
-            etapa_input = st.selectbox("Etapa de Progresso Atual:", ["Adesão", "Conhecimento", "Desafio", "Partida"])
-            
-            btn_entrar = st.form_submit_button("Aceder ao Caderno de Pista ➔")
-            
-            if btn_entrar:
-                if nome_input.strip() and equipa_input.strip():
-                    st.session_state["pioneiro_nome"] = nome_input.strip()
-                    st.session_state["pioneiro_equipa"] = equipa_input.strip()
-                    st.session_state["pioneiro_etapa"] = etapa_input
-                    st.success(f"Bem-vindo, {nome_input}!")
-                    st.rerun()
-                else:
-                    st.error("Por favor, preenche o Nome e a Equipa.")
+    # PASSAGEM 1: Login ou Registo de Novo Pioneiro
+    if st.session_state["pioneiro_ativo"] is None:
+        tab_login, tab_registo = st.tabs(["🔑 Aceder ao Meu Caderno", "📝 Criar Novo Perfil"])
 
-    # PASSAGEM 2: Caixas com Áreas de Desenvolvimento ou Detalhe do Trilho
+        # Separador 1: Entrar com PIN
+        with tab_login:
+            st.subheader("Entrar no meu Caderno de Pista")
+            if df_pioneiros.empty:
+                st.info("Ainda não existem Pioneiros registados. Cria o teu perfil no separador ao lado!")
+            else:
+                lista_pioneiros = df_pioneiros["Nome"].tolist()
+                pioneiro_selecionado = st.selectbox("Escolhe o teu Nome:", lista_pioneiros)
+                pin_input = st.text_input("Palavra-passe / PIN pessoal:", type="password", key="login_pin")
+                
+                if st.button("Desbloquear Caderno 🔓"):
+                    user_row = df_pioneiros[df_pioneiros["Nome"] == pioneiro_selecionado].iloc[0]
+                    if str(pin_input) == str(user_row["PIN"]):
+                        st.session_state["pioneiro_ativo"] = user_row.to_dict()
+                        st.success(f"Bem-vindo, {user_row['Nome']}!")
+                        st.rerun()
+                    else:
+                        st.error("PIN / Palavra-passe incorreta.")
+
+        # Separador 2: Registar Novo Perfil
+        with tab_registo:
+            st.subheader("Registar Novo Pioneiro")
+            with st.form(key="form_novo_pioneiro"):
+                novo_nome = st.text_input("Nome Completo:")
+                nova_equipa = st.text_input("Equipa (ex: Equipa Condor):")
+                nova_etapa = st.selectbox("Etapa Atual:", ["Adesão", "Conhecimento", "Desafio", "Partida"])
+                novo_pin = st.text_input("Cria a tua Palavra-passe / PIN (ex: 1234):", type="password")
+                
+                btn_registo = st.form_submit_button("Criar o meu Caderno 🚀")
+                
+                if btn_registo:
+                    if novo_nome.strip() and nova_equipa.strip() and novo_pin.strip():
+                        if novo_nome.strip() in df_pioneiros["Nome"].values:
+                            st.error("Já existe um Pioneiro registado com esse nome!")
+                        else:
+                            novo_utilizador = {
+                                "Nome": novo_nome.strip(),
+                                "Equipa": nova_equipa.strip(),
+                                "Etapa": nova_etapa,
+                                "PIN": str(novo_pin.strip())
+                            }
+                            st.session_state["utilizadores_pioneiros"] = pd.concat([
+                                st.session_state["utilizadores_pioneiros"], 
+                                pd.DataFrame([novo_utilizador])
+                            ], ignore_index=True)
+                            
+                            st.session_state["pioneiro_ativo"] = novo_utilizador
+                            st.success("Perfil criado com sucesso!")
+                            st.rerun()
+                    else:
+                        st.error("Por favor, preenche todos os campos para criar o perfil.")
+
+    # PASSAGEM 2: Vista das Áreas para o Pioneiro Autenticado
     else:
-        # Barra de identificação no topo
+        p_ativo = st.session_state["pioneiro_ativo"]
+
+        # Cabeçalho do perfil autenticado
         col_inf1, col_inf2, col_inf3, col_btn = st.columns([2, 2, 2, 1])
         with col_inf1:
-            st.markdown(f"👤 **Pioneiro:** {st.session_state['pioneiro_nome']}")
+            st.markdown(f"👤 **Pioneiro:** {p_ativo['Nome']}")
         with col_inf2:
-            st.markdown(f"🏕️ **Equipa:** {st.session_state['pioneiro_equipa']}")
+            st.markdown(f"🏕️ **Equipa:** {p_ativo['Equipa']}")
         with col_inf3:
-            st.markdown(f"⚜️ **Etapa:** {st.session_state['pioneiro_etapa']}")
+            st.markdown(f"⚜️ **Etapa:** {p_ativo['Etapa']}")
         with col_btn:
-            if st.button("✏️ Alterar", help="Alterar Nome/Equipa"):
-                st.session_state["pioneiro_nome"] = ""
-                st.session_state["pioneiro_equipa"] = ""
+            if st.button("🔒 Sair", help="Terminar sessão"):
+                st.session_state["pioneiro_ativo"] = None
                 st.session_state["area_selecionada"] = None
                 st.rerun()
 
         st.markdown("---")
 
-        # Vista A: Seleção de Área através de Caixas Interativas
+        # Seleção das Áreas de Desenvolvimento
         if st.session_state["area_selecionada"] is None:
             st.markdown("### 🎯 Escolhe a Área de Desenvolvimento:")
-            st.write("Clica numa das caixas abaixo para veres os respetivos Trilhos e Oportunidades:")
+            st.write("Clica numa das caixas para veres os respetivos Trilhos e Oportunidades:")
             st.write(" ")
 
             grid_col1, grid_col2 = st.columns(2)
@@ -300,11 +307,11 @@ elif st.session_state["perfil"] == "Pioneiro":
                         st.rerun()
                     st.write(" ")
 
-        # Vista B: Detalhe da Área Selecionada e Submissão
+        # Detalhe do Trilho e Submissão
         else:
             col_voltar, col_tit = st.columns([1, 4])
             with col_voltar:
-                if st.button("⬅️ Ver Outras Áreas"):
+                if st.button("⬅️ Outras Áreas"):
                     st.session_state["area_selecionada"] = None
                     st.rerun()
             with col_tit:
@@ -335,9 +342,9 @@ elif st.session_state["perfil"] == "Pioneiro":
                             novo_id = len(st.session_state["validacoes"]) + 1
                             nova_linha = {
                                 "ID": novo_id,
-                                "Equipa": st.session_state["pioneiro_equipa"],
-                                "Pioneiro": st.session_state["pioneiro_nome"],
-                                "Etapa": st.session_state["pioneiro_etapa"],
+                                "Equipa": p_ativo["Equipa"],
+                                "Pioneiro": p_ativo["Nome"],
+                                "Etapa": p_ativo["Etapa"],
                                 "Área": st.session_state["area_selecionada"],
                                 "Trilho": trilho["nome"],
                                 "Oportunidade": op_selecionada,
@@ -432,6 +439,9 @@ elif st.session_state["perfil"] == "Dirigente":
                             st.rerun()
             
             st.markdown("---")
+            st.markdown("### 👥 Utilizadores Registados (Pioneiros)")
+            st.dataframe(st.session_state["utilizadores_pioneiros"], use_container_width=True)
+
             st.markdown("### 📊 Histórico Global de Validações da Comunidade")
             st.dataframe(st.session_state["validacoes"], use_container_width=True)
         else:
