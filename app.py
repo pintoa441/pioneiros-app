@@ -1,6 +1,13 @@
+import streamlit as st
+import pandas as pd
+import os
+from datetime import date
+from streamlit_gsheets import GSheetsConnection
+
+# 1. Configuração da página
 st.set_page_config(
-    page_title="Caderno de Pista - Agrupamento 78",
-    page_icon="⚜️",  # Ou podes usar o caminho da imagem "logo_78.jpg"
+    page_title="Pista de Progresso - Agrupamento 78",
+    page_icon="⚜️",
     layout="wide"
 )
 import streamlit as st
