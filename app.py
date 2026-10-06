@@ -10,6 +10,8 @@ st.set_page_config(
     layout="wide"
 )
 
+# Definir a palavra-passe de acesso à área do dirigente
+PASSWORD_DIRIGENTE = "escuteiros78"
 DB_FILE = "dados_pioneiros.json"
 
 # Função para carregar dados do ficheiro JSON local
@@ -27,7 +29,7 @@ def save_data(data):
     with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# 2. Base de Dados dos 18 Trilhos de Progresso
+# 2. Base de Dados dos Trilhos de Progresso
 TRILHOS_DATA = [
     {
         "area": "Desenvolvimento Físico",
@@ -166,104 +168,118 @@ TRILHOS_DATA = [
     }
 ]
 
-# 3. Interface Principal
-st.title("⚜️ Caderno de Pista Digital - III Secção")
-
-# Sidebar - Dados do Pioneiro
-st.sidebar.header("👤 Perfil do Escuteiro")
-equipa = st.sidebar.text_input("Equipa", "Equipa Condor")
-nome_pioneiro = st.sidebar.text_input("Nome", "Escuteiro")
-etapa_atual = st.sidebar.selectbox("Etapa Atual", ["Adesão", "Conhecimento", "Desafio", "Partida"])
-
-st.sidebar.markdown("---")
-
-area_nomes = [a["area"] for a in TRILHOS_DATA]
-area_selecionada = st.sidebar.selectbox("🎯 Seleciona a Área", area_nomes)
-
-area_atual = next(a for a in TRILHOS_DATA if a["area"] == area_selecionada)
-
-# Painel Central
-st.header(f"Área: {area_atual['area']}")
-
-trilho_nomes = [t["nome"] for t in area_atual["trilhos"]]
-tabs = st.tabs(trilho_nomes)
+# Sidebar - Seleção de Modo
+st.sidebar.title("⚜️ Navegação")
+modo = st.sidebar.radio("Selecione a Área:", ["Área do Pioneiro", "Área da Chefia / Dirigente"])
 
 registos = load_data()
 
-for idx, tab in enumerate(tabs):
-    trilho = area_atual["trilhos"][idx]
-    with tab:
-        st.subheader(f"Trilho: {trilho['nome']}")
-        st.write(f"*{trilho['descricao']}*")
-        
-        st.markdown("##### 🎯 Objetivos de Progresso")
-        for obj in trilho["objetivos"]:
-            st.info(obj)
-            
-        st.markdown("##### 🚩 Oportunidades Educativas")
-        concluidas = 0
-        total = len(trilho["oportunidades"])
-        
-        op_selecionadas = []
-        for i, op in enumerate(trilho["oportunidades"]):
-            key = f"{trilho['id']}_op_{i}"
-            if st.checkbox(op, key=key):
-                concluidas += 1
-                op_selecionadas.append(op)
-                
-        progresso = concluidas / total if total > 0 else 0
-        st.progress(progresso)
-        st.caption(f"Concluídas: {concluidas}/{total} ({int(progresso * 100)}%)")
-        
-        if st.button(f"💾 Guardar Progresso - {trilho['nome']}", key=f"btn_{trilho['id']}"):
-            novos_registos = [r for r in registos if not (r['nome'] == nome_pioneiro and r['trilho'] == trilho['nome'])]
-            for op in op_selecionadas:
-                novos_registos.append({
-                    "equipa": equipa,
-                    "nome": nome_pioneiro,
-                    "etapa": etapa_atual,
-                    "area": area_atual["area"],
-                    "trilho": trilho["nome"],
-                    "oportunidade": op
-                })
-            save_data(novos_registos)
-            st.success("Progresso atualizado com sucesso!")
-
-# 4. Dashboard de Visualização e Cópia de Segurança
-st.markdown("---")
-st.header("📊 Painel Geral de Progresso")
-
-registos_atuais = load_data()
-df = pd.DataFrame(registos_atuais)
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.subheader("📋 Registos Efetuados")
-    if not df.empty:
-        st.dataframe(df, use_container_width=True)
-    else:
-        st.info("Ainda não existem registos guardados.")
-
-with col2:
-    st.subheader("💾 Cópia de Segurança (Backup)")
-    st.write("Guarda uma cópia dos teus dados no telemóvel/PC para nunca perderes o progresso!")
+# ==========================================
+# MODO 1: ÁREA DO PIONEIRO
+# ==========================================
+if modo == "Área do Pioneiro":
+    st.title("⚜️ Caderno de Pista Digital - III Secção")
     
-    if not df.empty:
-        json_string = json.dumps(registos_atuais, ensure_ascii=False, indent=4)
-        st.download_button(
-            label="📥 Descarregar Backup (JSON)",
-            data=json_string,
-            file_name=f"progresso_{nome_pioneiro.replace(' ', '_')}.json",
-            mime="application/json"
-        )
+    st.sidebar.markdown("---")
+    st.sidebar.header("👤 Perfil do Escuteiro")
+    equipa = st.sidebar.text_input("Equipa", "Equipa Condor")
+    nome_pioneiro = st.sidebar.text_input("Nome", "Escuteiro")
+    etapa_atual = st.sidebar.selectbox("Etapa Atual", ["Adesão", "Conhecimento", "Desafio", "Partida"])
 
-    # Carregar Backup
-    uploaded_file = st.file_uploader("📤 Restaurar Backup (JSON)", type=["json"])
-    if uploaded_file is not None:
-        try:
-            dados_carregados = json.load(uploaded_file)
-            save_data(dados_carregados)
-            st.success("Backup restaurado com sucesso! Recarrega a página.")
-        except Exception:
-            st.error("Ficheiro de backup inválido.")
+    st.sidebar.markdown("---")
+    area_nomes = [a["area"] for a in TRILHOS_DATA]
+    area_selecionada = st.sidebar.selectbox("🎯 Seleciona a Área", area_nomes)
+
+    area_atual = next(a for a in TRILHOS_DATA if a["area"] == area_selecionada)
+
+    st.header(f"Área: {area_atual['area']}")
+
+    trilho_nomes = [t["nome"] for t in area_atual["trilhos"]]
+    tabs = st.tabs(trilho_nomes)
+
+    for idx, tab in enumerate(tabs):
+        trilho = area_atual["trilhos"][idx]
+        with tab:
+            st.subheader(f"Trilho: {trilho['nome']}")
+            st.write(f"*{trilho['descricao']}*")
+            
+            st.markdown("##### 🎯 Objetivos de Progresso")
+            for obj in trilho["objetivos"]:
+                st.info(obj)
+                
+            st.markdown("##### 🚩 Oportunidades Educativas")
+            concluidas = 0
+            total = len(trilho["oportunidades"])
+            
+            op_selecionadas = []
+            for i, op in enumerate(trilho["oportunidades"]):
+                key = f"{trilho['id']}_op_{i}"
+                if st.checkbox(op, key=key):
+                    concluidas += 1
+                    op_selecionadas.append(op)
+                    
+            progresso = concluidas / total if total > 0 else 0
+            st.progress(progresso)
+            st.caption(f"Concluídas: {concluidas}/{total} ({int(progresso * 100)}%)")
+            
+            if st.button(f"💾 Guardar Progresso - {trilho['nome']}", key=f"btn_{trilho['id']}"):
+                novos_registos = [r for r in registos if not (r['nome'] == nome_pioneiro and r['trilho'] == trilho['nome'])]
+                for op in op_selecionadas:
+                    novos_registos.append({
+                        "equipa": equipa,
+                        "nome": nome_pioneiro,
+                        "etapa": etapa_atual,
+                        "area": area_atual["area"],
+                        "trilho": trilho["nome"],
+                        "oportunidade": op
+                    })
+                save_data(novos_registos)
+                st.success("Progresso atualizado com sucesso!")
+
+# ==========================================
+# MODO 2: ÁREA DA CHEFIA / DIRIGENTE
+# ==========================================
+else:
+    st.title("🛡️ Área do Dirigente / Chefia")
+    st.write("Acesso reservado à Equipa de Animação da Comunidade.")
+    
+    pwd_input = st.text_input("Palavra-passe de Acesso:", type="password")
+    
+    if pwd_input == PASSWORD_DIRIGENTE:
+        st.success("Acesso autorizado com sucesso!")
+        
+        df = pd.DataFrame(registos)
+        
+        if not df.empty:
+            st.markdown("### 📊 Visão Geral do Progresso da Comunidade")
+            
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Total de Validações", len(df))
+            col2.metric("Pioneiros Ativos", df['nome'].nunique())
+            col3.metric("Equipas", df['equipa'].nunique())
+            
+            st.markdown("---")
+            
+            st.subheader("🔍 Filtrar Registos")
+            pioneiro_filtro = st.selectbox("Filtrar por Pioneiro:", ["Todos"] + list(df['nome'].unique()))
+            
+            if pioneiro_filtro != "Todos":
+                df_exibir = df[df['nome'] == pioneiro_filtro]
+            else:
+                df_exibir = df
+                
+            st.dataframe(df_exibir, use_container_width=True)
+            
+            # Exportar todos os dados em CSV para a chefia guardar
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Descarregar Relatório Completo (CSV)",
+                data=csv,
+                file_name="progresso_comunidade_pioneiros.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("Ainda não existem registos de progresso submetidos pelos Pioneiros.")
+            
+    elif pwd_input != "":
+        st.error("Palavra-passe incorreta. Tenta novamente.")
