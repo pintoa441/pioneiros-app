@@ -1,6 +1,7 @@
-import sqlite3
-import pandas as pd
 import streamlit as st
+import pandas as pd
+import json
+import os
 
 # 1. Configuração da página
 st.set_page_config(
@@ -9,33 +10,24 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Inicialização e Gestão da Base de Dados (SQLite)
-def get_connection():
-    return sqlite3.connect("progresso_pioneiros.db")
+DB_FILE = "dados_pioneiros.json"
 
-def init_db():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS propostas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            equipa TEXT,
-            nome TEXT,
-            etapa TEXT,
-            area TEXT,
-            trilho TEXT,
-            objetivo_codigo TEXT,
-            oportunidade TEXT,
-            data_registo TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    conn.close()
+# Função para carregar dados do ficheiro JSON local
+def load_data():
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
 
-# Executa a criação da tabela logo no arranque
-init_db()
+# Função para guardar dados no ficheiro JSON local
+def save_data(data):
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
-# 3. Base de Dados dos Trilhos de Progresso
+# 2. Base de Dados dos 18 Trilhos de Progresso
 TRILHOS_DATA = [
     {
         "area": "Desenvolvimento Físico",
@@ -44,42 +36,34 @@ TRILHOS_DATA = [
                 "id": "desempenho",
                 "nome": "Desempenho",
                 "descricao": "Ter preocupação com o desempenho físico e praticar atividades que contribuem para um desenvolvimento equilibrado.",
-                "objetivos": ["F1 - Tenho preocupação com o meu desempenho físico. Pratico atividades que contribuem para o meu desenvolvimento equilibrado."],
+                "objetivos": ["F1 - Tenho preocupação com o meu desempenho físico."],
                 "oportunidades": [
-                    "Programar e executar um raid para a Equipa/Comunidade com planeamento de esforço, descanso e alimentação.",
+                    "Programar e executar um raid para a Equipa/Comunidade.",
                     "Promover uma palestra sobre atividade desportiva, saúde e bem-estar.",
                     "Criar um plano de treino pessoal e praticar atividade física regular.",
-                    "Organizar um torneio de provas desportivas.",
-                    "Fazer uma avaliação das limitações físicas e organizar uma atividade para superar novos desafios.",
-                    "Inscrever-se numa atividade nova fora da zona de conforto."
+                    "Organizar um torneio de provas desportivas."
                 ]
             },
             {
                 "id": "autoconhecimento",
                 "nome": "Autoconhecimento",
-                "descricao": "Aceitar-se como é, reconhecendo e respeitando as diferenças físicas e o sexo oposto.",
-                "objetivos": [
-                    "F2 - Aceito-me como sou e respeito as diferenças físicas entre as pessoas.",
-                    "F3 - Reconheço e respeito as diferenças entre homens e mulheres e as necessidades de cada um."
-                ],
+                "descricao": "Aceitar-se como é, reconhecendo e respeitando as diferenças físicas.",
+                "objetivos": ["F2 - Aceito-me como sou e respeito as diferenças físicas."],
                 "oportunidades": [
                     "Arranjar soluções na vida diária para inclusão de pessoas com deficiência.",
-                    "Promover um debate, palestra ou campanha sobre prevenção do bullying ou discriminação.",
-                    "Fazer uma análise SWOT pessoal de pontos fortes e limitações físicas.",
-                    "Organizar a semana da mobilidade na escola ou Agrupamento.",
-                    "Criar um guião de campo sobre como superar barreiras para escuteiros com mobilidade reduzida."
+                    "Promover um debate sobre prevenção do bullying.",
+                    "Fazer uma análise SWOT pessoal de pontos fortes e limitações."
                 ]
             },
             {
                 "id": "bem_estar",
                 "nome": "Bem-Estar Físico",
-                "descricao": "Reger-se por um estilo de vida saudável, cuidando da apresentação, alimentação e repouso.",
-                "objetivos": ["F4 - Rejo-me por um estilo de vida saudável, preocupando-me com a minha apresentação, alimentação e repouso."],
+                "descricao": "Reger-se por um estilo de vida saudável, cuidando da alimentação e repouso.",
+                "objetivos": ["F4 - Rejo-me por um estilo de vida saudável."],
                 "oportunidades": [
-                    "Planear e assumir a responsabilidade pelas refeições de um fim de semana de atividade.",
-                    "Elaborar um manual de boas práticas de alimentação saudável em campo.",
-                    "Promover ações ou workshops sobre higiene corporal e saúde oral.",
-                    "Organizar debates sobre prevenção de comportamentos de risco."
+                    "Planear as refeições de um fim de semana de atividade.",
+                    "Elaborar um manual de boas práticas de alimentação em campo.",
+                    "Promover workshops sobre higiene corporal e saúde oral."
                 ]
             }
         ]
@@ -90,42 +74,22 @@ TRILHOS_DATA = [
             {
                 "id": "relacionamento",
                 "nome": "Relacionamento e Sensibilidade",
-                "descricao": "Respeitar os outros nas várias relações e encarar a família como pilar de vida.",
-                "objetivos": [
-                    "A1 - Reconheço o valor das minhas relações afetivas e da minha sexualidade.",
-                    "A2 - Reconheço o valor da família e comprometo-me com o bem-estar da mesma.",
-                    "A3 - Demonstro maturidade perante os conflitos e reconheço diferentes sensibilidades."
-                ],
+                "descricao": "Respeitar os outros nas várias relações e encarar a família como pilar.",
+                "objetivos": ["A1 - Reconheço o valor das minhas relações afetivas."],
                 "oportunidades": [
-                    "Promover discussões sobre prevenção de violência no namoro ou bullying.",
+                    "Promover discussões sobre prevenção de violência no namoro.",
                     "Manter um diário de vivências e sentimentos.",
-                    "Convidar a família para momentos marcantes da vida escutista.",
                     "Planear um momento de convívio aberto à família e amigos."
                 ]
             },
             {
                 "id": "equilibrio",
                 "nome": "Equilíbrio Emocional",
-                "descricao": "Agir de forma ponderada, sabendo gerir os sentimentos dos outros.",
-                "objetivos": ["A4 - Ajo de forma ponderada, respeitando o sentimento dos outros e esforço-me por corrigir quando me excedo."],
+                "descricao": "Agir de forma ponderada, sabendo gerir os sentimentos.",
+                "objetivos": ["A4 - Ajo de forma ponderada e respeito o sentimento dos outros."],
                 "oportunidades": [
-                    "Escrever um diário de emoções do último mês e refletir sobre como atuou.",
-                    "Organizar um debate na Equipa e avaliar como lidou com opiniões divergentes.",
-                    "Criar uma dinâmica de dramatização para praticar a gestão de conflitos."
-                ]
-            },
-            {
-                "id": "autoestima",
-                "nome": "Autoestima",
-                "descricao": "Conhecer e aceitar a própria personalidade, esforçando-se para superar limitações.",
-                "objetivos": [
-                    "A5 - Reconheço as características da minha personalidade, trabalhando para corrigir as menos positivas.",
-                    "A6 - Procuro desenvolver continuamente as minhas aptidões."
-                ],
-                "oportunidades": [
-                    "Realizar um teste de personalidade e debater em Equipa.",
-                    "Fazer testes psicotécnicos e traçar um plano de formação.",
-                    "Autoavaliar conhecimentos técnicos e dinamizar um atelier útil."
+                    "Escrever um diário de emoções e refletir sobre como atuou.",
+                    "Organizar um debate na Equipa sobre opiniões divergentes."
                 ]
             }
         ]
@@ -136,29 +100,21 @@ TRILHOS_DATA = [
             {
                 "id": "autonomia",
                 "nome": "Autonomia",
-                "descricao": "Saber fazer opções coerentes com uma matriz de valores, assumindo a responsabilidade.",
-                "objetivos": [
-                    "C1 - Sou capaz de fazer opções de acordo com os meus valores fundamentais.",
-                    "C2 - Estabeleço para mim, com regularidade, metas a atingir."
-                ],
+                "descricao": "Saber fazer opções coerentes com uma matriz de valores.",
+                "objetivos": ["C1 - Sou capaz de fazer opções de acordo com os meus valores."],
                 "oportunidades": [
                     "Participar ativamente nas escolhas do Empreendimento.",
-                    "Traçar um plano concreto para alcançar um objetivo.",
-                    "Criar soluções de autonomia para gerir tarefas diárias."
+                    "Traçar um plano concreto para alcançar um objetivo de progresso."
                 ]
             },
             {
                 "id": "responsabilidade",
                 "nome": "Responsabilidade",
-                "descricao": "Demonstrar empenho nas tarefas atribuídas, cumprir compromissos e ser persistente.",
-                "objetivos": [
-                    "C3 - Reconheço a importância das tarefas atribuídas e estabeleço prioridades.",
-                    "C4 - Enfrento as dificuldades sem desistir de encontrar soluções."
-                ],
+                "descricao": "Demonstrar empenho nas tarefas e cumprir compromissos.",
+                "objetivos": ["C3 - Reconheço a importância das tarefas atribuídas."],
                 "oportunidades": [
                     "Assumir tarefas de preparação de um Empreendimento.",
-                    "Exercer a função de Guia assumindo as respetivas responsabilidades.",
-                    "Estabelecer 3 metas de vida pessoal com compromisso real."
+                    "Exercer a função de Guia/Sub-guia com responsabilidade."
                 ]
             }
         ]
@@ -169,15 +125,11 @@ TRILHOS_DATA = [
             {
                 "id": "descoberta",
                 "nome": "Descoberta",
-                "descricao": "Conhecer a revelação de Deus através dos profetas e de Jesus Cristo.",
-                "objetivos": [
-                    "E1 - Conheço e compreendo a vida dos principais profetas.",
-                    "E2 - Conheço a forma como Jesus se deu a conhecer aos Apóstolos."
-                ],
+                "descricao": "Conhecer a revelação de Deus e viver a fé na comunidade.",
+                "objetivos": ["E1 - Conheço e compreendo a vida dos principais profetas."],
                 "oportunidades": [
                     "Organizar um raid sob um tema ou imaginário bíblico.",
-                    "Ajudar na dinamização dos tempos litúrgicos de Advento ou Quaresma.",
-                    "Promover um ciclo de conversas sobre a vivência da fé."
+                    "Ajudar na dinamização dos tempos litúrgicos de Advento ou Quaresma."
                 ]
             }
         ]
@@ -189,13 +141,9 @@ TRILHOS_DATA = [
                 "id": "procura_conhecimento",
                 "nome": "Procura do Conhecimento",
                 "descricao": "Aumentar os conhecimentos utilizando ferramentas de informação.",
-                "objetivos": [
-                    "I1 - Procuro sempre aumentar os meus conhecimentos.",
-                    "I2 - Reconheço as minhas aptidões e faço escolhas de futuro."
-                ],
+                "objetivos": ["I1 - Procuro sempre aumentar os meus conhecimentos."],
                 "oportunidades": [
                     "Dinamizar um workshop técnico para ensinar competências.",
-                    "Participar em formações jovens organizadas no município.",
                     "Criar uma ferramenta digital de apoio ao Empreendimento."
                 ]
             }
@@ -208,25 +156,21 @@ TRILHOS_DATA = [
                 "id": "cidadania",
                 "nome": "Exercer Ativamente Cidadania",
                 "descricao": "Conhecer deveres e direitos e intervir em projetos comunitários.",
-                "objetivos": [
-                    "S1 - Promovo o conhecimento dos deveres e direitos.",
-                    "S2 - Participo ativamente nas comunidades intervindo em causas comuns."
-                ],
+                "objetivos": ["S1 - Promovo o conhecimento dos deveres e direitos."],
                 "oportunidades": [
-                    "Participar na Associação de Estudantes ou Orçamento Participativo Jovem.",
-                    "Realizar trabalho de voluntariado contínuo numa instituição local.",
-                    "Desenvolver uma campanha de sensibilização sobre cidadania."
+                    "Participar na Associação de Estudantes ou Orçamento Participativo.",
+                    "Realizar trabalho de voluntariado numa instituição local."
                 ]
             }
         ]
     }
 ]
 
-# 4. Interface Principal
-st.title("⚜️ Pista de Progresso - III Secção")
+# 3. Interface Principal
+st.title("⚜️ Caderno de Pista Digital - III Secção")
 
-# Sidebar
-st.sidebar.header("👤 Dados do Pioneiro")
+# Sidebar - Dados do Pioneiro
+st.sidebar.header("👤 Perfil do Escuteiro")
 equipa = st.sidebar.text_input("Equipa", "Equipa Condor")
 nome_pioneiro = st.sidebar.text_input("Nome", "Escuteiro")
 etapa_atual = st.sidebar.selectbox("Etapa Atual", ["Adesão", "Conhecimento", "Desafio", "Partida"])
@@ -238,10 +182,13 @@ area_selecionada = st.sidebar.selectbox("🎯 Seleciona a Área", area_nomes)
 
 area_atual = next(a for a in TRILHOS_DATA if a["area"] == area_selecionada)
 
+# Painel Central
 st.header(f"Área: {area_atual['area']}")
 
 trilho_nomes = [t["nome"] for t in area_atual["trilhos"]]
 tabs = st.tabs(trilho_nomes)
+
+registos = load_data()
 
 for idx, tab in enumerate(tabs):
     trilho = area_atual["trilhos"][idx]
@@ -266,32 +213,57 @@ for idx, tab in enumerate(tabs):
                 
         progresso = concluidas / total if total > 0 else 0
         st.progress(progresso)
-        st.caption(f"Progresso: {concluidas}/{total} concluídas ({int(progresso * 100)}%)")
+        st.caption(f"Concluídas: {concluidas}/{total} ({int(progresso * 100)}%)")
         
         if st.button(f"💾 Guardar Progresso - {trilho['nome']}", key=f"btn_{trilho['id']}"):
-            conn = get_connection()
-            cursor = conn.cursor()
-            obj_cod = trilho["objetivos"][0].split(" - ")[0] if trilho["objetivos"] else ""
+            novos_registos = [r for r in registos if not (r['nome'] == nome_pioneiro and r['trilho'] == trilho['nome'])]
             for op in op_selecionadas:
-                cursor.execute("""
-                    INSERT INTO propostas (equipa, nome, etapa, area, trilho, objetivo_codigo, oportunidade)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (equipa, nome_pioneiro, etapa_atual, area_atual["area"], trilho["nome"], obj_cod, op))
-            conn.commit()
-            conn.close()
-            st.success("Guardado com sucesso!")
+                novos_registos.append({
+                    "equipa": equipa,
+                    "nome": nome_pioneiro,
+                    "etapa": etapa_atual,
+                    "area": area_atual["area"],
+                    "trilho": trilho["nome"],
+                    "oportunidade": op
+                })
+            save_data(novos_registos)
+            st.success("Progresso atualizado com sucesso!")
 
-# 5. Consulta Segura da Base de Dados
+# 4. Dashboard de Visualização e Cópia de Segurança
 st.markdown("---")
-with st.expander("📊 Ver Base de Dados (SQLite)"):
-    try:
-        conn = get_connection()
-        df = pd.read_sql_query("SELECT * FROM propostas ORDER BY data_registo DESC", conn)
-        conn.close()
-        
-        if not df.empty:
-            st.dataframe(df, use_container_width=True)
-        else:
-            st.info("Nenhum registo guardado ainda.")
-    except Exception:
-        st.info("Nenhum registo guardado ainda.")
+st.header("📊 Painel Geral de Progresso")
+
+registos_atuais = load_data()
+df = pd.DataFrame(registos_atuais)
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("📋 Registos Efetuados")
+    if not df.empty:
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.info("Ainda não existem registos guardados.")
+
+with col2:
+    st.subheader("💾 Cópia de Segurança (Backup)")
+    st.write("Guarda uma cópia dos teus dados no telemóvel/PC para nunca perderes o progresso!")
+    
+    if not df.empty:
+        json_string = json.dumps(registos_atuais, ensure_ascii=False, indent=4)
+        st.download_button(
+            label="📥 Descarregar Backup (JSON)",
+            data=json_string,
+            file_name=f"progresso_{nome_pioneiro.replace(' ', '_')}.json",
+            mime="application/json"
+        )
+
+    # Carregar Backup
+    uploaded_file = st.file_uploader("📤 Restaurar Backup (JSON)", type=["json"])
+    if uploaded_file is not None:
+        try:
+            dados_carregados = json.load(uploaded_file)
+            save_data(dados_carregados)
+            st.success("Backup restaurado com sucesso! Recarrega a página.")
+        except Exception:
+            st.error("Ficheiro de backup inválido.")
