@@ -10,23 +10,25 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Exibição do Logótipo e Título
+# 2. Inicialização do Estado da Sessão (Perfil selecionado)
+if "perfil" not in st.session_state:
+    st.session_state["perfil"] = "Inicio"
+
+# Passwords de Acesso
+PASSWORD_DIRIGENTE = "escuteiros78"
+PASSWORD_GUIAS = "guias78"
+
+# 3. Exibição do Logótipo e Título na Barra Lateral
 if os.path.exists("logo_78.jpg"):
     st.sidebar.image("logo_78.jpg", use_container_width=True)
 
-col_logo, col_titulo = st.columns([1, 4])
-with col_logo:
-    if os.path.exists("logo_78.jpg"):
-        st.image("logo_78.jpg", width=100)
-with col_titulo:
-    st.title("⚜️ Caderno de Pista Digital")
-    st.caption("Agrupamento 78 Arruda dos Vinhos - III Secção (Pioneiros)")
+st.sidebar.title("⚜️ Agrupamento 78")
 
-st.markdown("---")
-
-# 3. Passwords de Acesso
-PASSWORD_DIRIGENTE = "escuteiros78"
-PASSWORD_GUIAS = "guias78"
+# Botão na barra lateral para voltar ao início se já estiver num perfil
+if st.session_state["perfil"] != "Inicio":
+    if st.sidebar.button("🏠 Voltar ao Ecrã Inicial"):
+        st.session_state["perfil"] = "Inicio"
+        st.rerun()
 
 # 4. Estrutura dos Trilhos e Objetivos
 TRILHOS_DATA = [
@@ -167,18 +169,48 @@ TRILHOS_DATA = [
     }
 ]
 
-# 5. Navegação Principal
-st.sidebar.title("⚜️ Navegação")
-modo = st.sidebar.radio("Selecione a Área:", [
-    "Área do Pioneiro", 
-    "Área do Conselho de Guias", 
-    "Área da Chefia / Dirigente"
-])
+# =========================================================
+# 🏠 ECRÃ INICIAL / SELEÇÃO DE PERFIL
+# =========================================================
+if st.session_state["perfil"] == "Inicio":
+    col_l, col_t = st.columns([1, 4])
+    with col_l:
+        if os.path.exists("logo_78.jpg"):
+            st.image("logo_78.jpg", width=110)
+    with col_t:
+        st.title("⚜️ Caderno de Pista Digital")
+        st.caption("Agrupamento 78 Arruda dos Vinhos - III Secção (Pioneiros)")
 
-# ---------------------------------------------------------
-# MODO 1: ÁREA DO PIONEIRO
-# ---------------------------------------------------------
-if modo == "Área do Pioneiro":
+    st.markdown("---")
+    st.subheader("Bem-vindo! Seleciona o teu perfil para continuar:")
+    st.write(" ")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.info("### 🏕️ Pioneiro\n\nConsulta a tua Pista de Progresso, descobre os Trilhos e regista as Oportunidades Concluídas.")
+        if st.button("Entrar como Pioneiro ➔", use_container_width=True):
+            st.session_state["perfil"] = "Pioneiro"
+            st.rerun()
+
+    with col2:
+        st.warning("### ⚜️ Guia / Conselho de Guias\n\nAcompanha o progresso das Equipas da Comunidade e valida as Oportunidades submetidas.")
+        if st.button("Entrar como Guia ➔", use_container_width=True):
+            st.session_state["perfil"] = "Guia"
+            st.rerun()
+
+    with col3:
+        st.success("### 🛡️ Dirigente / Chefia\n\nPainel de controlo geral da III Secção para acompanhamento e gestão das Etapas.")
+        if st.button("Entrar como Dirigente ➔", use_container_width=True):
+            st.session_state["perfil"] = "Dirigente"
+            st.rerun()
+
+# =========================================================
+# 🏕️ MODO 1: ÁREA DO PIONEIRO
+# =========================================================
+elif st.session_state["perfil"] == "Pioneiro":
+    st.title("🏕️ Área do Pioneiro")
+    
     st.sidebar.markdown("---")
     st.sidebar.header("👤 Perfil do Escuteiro")
     equipa = st.sidebar.text_input("Equipa", "Equipa Condor")
@@ -210,26 +242,26 @@ if modo == "Área do Pioneiro":
             for op in trilho["oportunidades"]:
                 st.checkbox(op, key=f"{trilho['id']}_op_{op}")
 
-# ---------------------------------------------------------
-# MODO 2: ÁREA DO CONSELHO DE GUIAS
-# ---------------------------------------------------------
-elif modo == "Área do Conselho de Guias":
-    st.subheader("⚜️ Área do Conselho de Guias")
-    st.write("Validação e acompanhamento de progresso das Equipas.")
+# =========================================================
+# ⚜️ MODO 2: ÁREA DO GUIA / CONSELHO DE GUIAS
+# =========================================================
+elif st.session_state["perfil"] == "Guia":
+    st.title("⚜️ Área do Guia / Conselho de Guias")
+    st.write("Validação e acompanhamento do progresso da Comunidade 78.")
     
     pwd_guias = st.text_input("Palavra-passe do Conselho de Guias:", type="password")
     
     if pwd_guias == PASSWORD_GUIAS:
         st.success("Acesso autorizado ao Conselho de Guias!")
-        st.info("Aqui serão validadas as propostas submetidas pelas Equipas.")
+        st.info("Aqui serão apresentadas as validações de progresso das Equipas.")
     elif pwd_guias:
         st.error("Palavra-passe do Conselho de Guias incorreta.")
 
-# ---------------------------------------------------------
-# MODO 3: ÁREA DA CHEFIA / DIRIGENTE
-# ---------------------------------------------------------
-else:
-    st.subheader("🛡️ Área do Dirigente / Chefia")
+# =========================================================
+# 🛡️ MODO 3: ÁREA DO DIRIGENTE / CHEFIA
+# =========================================================
+elif st.session_state["perfil"] == "Dirigente":
+    st.title("🛡️ Área do Dirigente / Chefia")
     
     with st.form(key="login_form"):
         pwd_input = st.text_input("Palavra-passe de Acesso:", type="password")
@@ -244,5 +276,5 @@ else:
             st.error("Palavra-passe incorreta.")
 
     if st.session_state.get("autenticado", False):
-        st.markdown("### 📊 Visão Geral da Comunidade")
+        st.markdown("### 📊 Visão Geral da Comunidade 78")
         st.write("Painel de controlo da Chefia para acompanhamento das Etapas de Progresso.")
